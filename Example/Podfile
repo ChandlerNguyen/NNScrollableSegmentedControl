@@ -1,0 +1,11 @@
+use_frameworks!
+
+target 'NNScrollableSegmentedControl_Example' do
+  pod 'NNScrollableSegmentedControl', :path => '../'
+
+  target 'NNScrollableSegmentedControl_Tests' do
+    inherit! :search_paths
+
+    
+  end
+end
