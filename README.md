@@ -22,7 +22,7 @@ pod 'NNScrollableSegmentedControl'
 
 ## Author
 
-ChandlerNguyen, nang.nguyen@evizi.com
+Nang Nguyen, nang.nguyen@evizi.com
 
 ## License
 
