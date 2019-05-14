@@ -7,7 +7,7 @@
 
 import UIKit
 
-public class NNScrollableSegmentedControl: UIControl {
+public class NNScrollableSegmentedControl: UIView {
     public enum Style {
         case textOnly
         case imageOnly
@@ -85,7 +85,7 @@ public class NNScrollableSegmentedControl: UIControl {
                 }
                 
                 if oldValue != selectedSegmentIndex {
-                    self.sendActions(for: .valueChanged)
+                    valueChanged?(selectedSegmentIndex)
                 }
             }
         }
@@ -246,7 +246,6 @@ public class NNScrollableSegmentedControl: UIControl {
             segments.append(segmentData)
         }
         dataSource?.viewModels = segments
-        self.addTarget(self, action: #selector(segmentSelected(sender:)), for: .valueChanged)
     }
     
     public init(segments: [(title:String, image: UIImage?)]) {
@@ -262,11 +261,6 @@ public class NNScrollableSegmentedControl: UIControl {
             items.append(segmentData)
         }
         dataSource?.viewModels = items
-        self.addTarget(self, action: #selector(segmentSelected(sender:)), for: .valueChanged)
-    }
-    
-    @objc private func segmentSelected(sender: NNScrollableSegmentedControl) {
-        valueChanged?(sender.selectedSegmentIndex)
     }
     
     private func setupViewHierarchy() {
