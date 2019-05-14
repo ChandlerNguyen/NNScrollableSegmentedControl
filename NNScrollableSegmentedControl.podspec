@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'NNScrollableSegmentedControl'
-  s.version          = '1.0.0'
+  s.version          = '1.0.1'
   s.summary          = 'A short description of NNScrollableSegmentedControl.'
   s.homepage         = 'https://github.com/ChandlerNguyen/NNScrollableSegmentedControl'
   s.license          = { :type => 'MIT', :file => 'LICENSE' }
