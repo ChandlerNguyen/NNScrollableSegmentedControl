@@ -10,5 +10,6 @@ Pod::Spec.new do |s|
   s.swift_version = '5.0'
   s.ios.deployment_target = '9.0'
 
-  s.source_files = 'NNScrollableSegmentedControl/Classes/**/*'
+  s.source_files = 'NNScrollableSegmentedControl/**/*'
+  s.frameworks = 'Foundation','UIKit'
 end
