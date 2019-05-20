@@ -66,6 +66,7 @@ class TableViewController: UITableViewController {
         segmentedControl.insertSegment(withTitle: "Segment 5", image: #imageLiteral(resourceName: "segment-5"), at: 4)
         segmentedControl.insertSegment(withTitle: "Segment 6", image: #imageLiteral(resourceName: "segment-6"), at: 5)
         
+        segmentedControl.horizontalSeparatorType = .none
         segmentedControl.selectedSegmentIndex = 0
         //segmentedControl.selectedBackgroundColor = .clear
     }
@@ -153,9 +154,9 @@ class TableViewController: UITableViewController {
     
     @IBAction func toggleFixedWidth(_ sender: UISwitch) {
         if (sender.isOn) {
-            segmentedControl.segmentWidthStyle = .fixed(maxVisibleItems: 3)
+            segmentedControl.segmentWidth = .fixed(maxVisibleItems: 3)
         } else {
-            segmentedControl.segmentWidthStyle = .dynamic
+            segmentedControl.segmentWidth = .dynamic
         }
     }
     

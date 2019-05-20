@@ -23,6 +23,26 @@ public class NNScrollableSegmentedControl: UIView {
         }
     }
     
+    public var horizontalSeparatorColor: UIColor = .gray
+    public var horizontalSeparatorType: HorizontalSeparatorType = .topAndBottom {
+        didSet {
+            switch horizontalSeparatorType {
+            case .none:
+                topSeparatorView.backgroundColor = .clear
+                bottomSeparatorView.backgroundColor = .clear
+            case .top:
+                topSeparatorView.backgroundColor = horizontalSeparatorColor
+                bottomSeparatorView.backgroundColor = .clear
+            case .bottom:
+                topSeparatorView.backgroundColor = .clear
+                bottomSeparatorView.backgroundColor = horizontalSeparatorColor
+            case .topAndBottom:
+                topSeparatorView.backgroundColor = horizontalSeparatorColor
+                bottomSeparatorView.backgroundColor = horizontalSeparatorColor
+            }
+        }
+    }
+    
     public var selectedBackgroundColor: UIColor = .cyan {
         didSet {
             if let selectedLayer = self.selectedLayer {
@@ -53,7 +73,7 @@ public class NNScrollableSegmentedControl: UIView {
         }
     }
     
-    public var segmentWidthStyle: SegmentWidthOption = .fixed(maxVisibleItems: 4) {
+    public var segmentWidth: SegmentWidthOption = .fixed(maxVisibleItems: 4) {
         didSet {
             reloadSegments()
         }
@@ -86,6 +106,19 @@ public class NNScrollableSegmentedControl: UIView {
     private var titleAttributes:[UInt: [NSAttributedString.Key : Any]] = [UInt: [NSAttributedString.Key : Any]]()
     
     private var isPerformingScrollAnimation = false
+    lazy private var topSeparatorView: UIView = {
+        let topSeparatorView = UIView()
+        topSeparatorView.translatesAutoresizingMaskIntoConstraints = false
+        topSeparatorView.backgroundColor = horizontalSeparatorColor
+        return topSeparatorView
+    }()
+    
+    lazy private var bottomSeparatorView: UIView = {
+        let bottomSeparatorView = UIView()
+        bottomSeparatorView.translatesAutoresizingMaskIntoConstraints = false
+        bottomSeparatorView.backgroundColor = horizontalSeparatorColor
+        return bottomSeparatorView
+    }()
     
     lazy private var indicatorLayer: CAShapeLayer? = {
         let indicatorLayer = CAShapeLayer()
@@ -276,6 +309,8 @@ public class NNScrollableSegmentedControl: UIView {
     
     private func setupViewHierarchy() {
         addSubview(collectionView)
+        addSubview(topSeparatorView)
+        addSubview(bottomSeparatorView)
     }
     
     private func setupConstraints() {
@@ -284,6 +319,18 @@ public class NNScrollableSegmentedControl: UIView {
             .bottomAnchor(equalTo: self.bottomAnchor)
             .trailingAnchor(equalTo: self.trailingAnchor)
             .leadingAnchor(equalTo: self.leadingAnchor)
+        
+        topSeparatorView
+            .topAnchor(equalTo: self.topAnchor)
+            .trailingAnchor(equalTo: self.trailingAnchor)
+            .leadingAnchor(equalTo: self.leadingAnchor)
+            .heightAnchor(equalTo: 1)
+        
+        bottomSeparatorView
+            .bottomAnchor(equalTo: self.bottomAnchor)
+            .trailingAnchor(equalTo: self.trailingAnchor)
+            .leadingAnchor(equalTo: self.leadingAnchor)
+            .heightAnchor(equalTo: 1)
     }
     
     private func segmentSize(_ segmentItem: BaseSegmentCell.ViewModel) -> CGSize {
@@ -294,7 +341,7 @@ public class NNScrollableSegmentedControl: UIView {
             imageWidth = BaseSegmentCell.imageSize + BaseSegmentCell.imageToTextMargin * 2
         }
         
-        switch segmentWidthStyle {
+        switch segmentWidth {
         case .dynamic:
             if segmentItem.image == nil {
                 imageWidth = 0
@@ -393,7 +440,7 @@ public class NNScrollableSegmentedControl: UIView {
             cellWidth = segmentWidth(for: IndexPath(row: selectedSegmentIndex, section: 0))
             var x: CGFloat = 0
             
-            switch segmentWidthStyle {
+            switch segmentWidth {
             case .fixed:
                 x = floor(CGFloat(selectedSegmentIndex) * cellWidth - collectionView.contentOffset.x)
                 
@@ -704,5 +751,14 @@ extension NNScrollableSegmentedControl {
     public enum IndicatorPosition {
         case top
         case bottom
+    }
+    
+    public enum HorizontalSeparatorType {
+        
+        case none
+        case top
+        case bottom
+        case topAndBottom
+        
     }
 }
