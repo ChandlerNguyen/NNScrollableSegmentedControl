@@ -27,15 +27,14 @@ class TableViewController: UITableViewController {
     @IBOutlet weak var showUnderSwitch: UISwitch!
     
     lazy var segmentedControl: NNScrollableSegmentedControl = {
-        let ctr = NNScrollableSegmentedControl(segments: [(title:"Segment 1", image: #imageLiteral(resourceName: "segment-1")),
-                                                       (title: "S 2", image: #imageLiteral(resourceName: "segment-2")),
-                                                       (title: "Long Text Segment 3", image: #imageLiteral(resourceName: "segment-3")),
-                                                       (title: "Seg 4", image: #imageLiteral(resourceName: "segment-4")),
-                                                       (title: "Segment 5", image: #imageLiteral(resourceName: "segment-5")),
-                                                       (title: "Segment 6", image:nil),
-                                                       (title: "Segment 7", image: #imageLiteral(resourceName: "segment-6"))])
+//        let ctr = NNScrollableSegmentedControl(segments: [(title:"Segment 1", image: #imageLiteral(resourceName: "segment-1")),
+//                                                       (title: "S 2", image: #imageLiteral(resourceName: "segment-2")),
+//                                                       (title: "Long Text Segment 3", image: #imageLiteral(resourceName: "segment-3")),
+//                                                       (title: "Seg 4", image: #imageLiteral(resourceName: "segment-4")),
+//                                                       (title: "Segment 5", image: #imageLiteral(resourceName: "segment-5")),
+//                                                       (title: "Segment 6", image: #imageLiteral(resourceName: "segment-6"))])
         
-        //let ctr = NNScrollableSegmentedControl(frame: .zero)
+        let ctr = NNScrollableSegmentedControl(frame: .zero)
         ctr.translatesAutoresizingMaskIntoConstraints = false
         
         ctr.style = .textOnly
@@ -44,12 +43,10 @@ class TableViewController: UITableViewController {
         //ctr.contentColor = .white
         ctr.selectedContentColor = .red
         ctr.selectedSegmentIndex = 0
-        ctr.underlineSelected = true
-        ctr.fixedWidth = true
         //ctr.insertSegment(withTitle: "Segment 7", at: 6)
         //ctr.addTarget(self, action: #selector(segmentSelected(sender:)), for: .valueChanged)
         
-        ctr.valueChanged = { (selectedSegmentIndex) in
+        ctr.valueDidChange = { (_,selectedSegmentIndex) in
             print("Segment at index \(selectedSegmentIndex)  selected")
         }
         
@@ -62,12 +59,15 @@ class TableViewController: UITableViewController {
         setupViewHierarchy()
         setupConstraints()
         
-//        segmentedControl.insertSegment(withTitle: "Segment 1", image: #imageLiteral(resourceName: "segment-1"), at: 0)
-//        segmentedControl.insertSegment(withTitle: "S 2", image: #imageLiteral(resourceName: "segment-2"), at: 1)
-//        segmentedControl.insertSegment(withTitle: "Segment 3.0001", image: #imageLiteral(resourceName: "segment-3"), at: 2)
-//        segmentedControl.insertSegment(withTitle: "Seg 4", image: #imageLiteral(resourceName: "segment-4"), at: 3)
-//        segmentedControl.insertSegment(withTitle: "Segment 5", image: #imageLiteral(resourceName: "segment-5"), at: 4)
-//        segmentedControl.insertSegment(withTitle: "Segment 6", image: #imageLiteral(resourceName: "segment-6"), at: 5)
+        segmentedControl.insertSegment(withTitle: "Segment 1", image: #imageLiteral(resourceName: "segment-1"), at: 0)
+        segmentedControl.insertSegment(withTitle: "S 2", image: #imageLiteral(resourceName: "segment-2"), at: 1)
+        segmentedControl.insertSegment(withTitle: "Segment 3.0001", image: #imageLiteral(resourceName: "segment-3"), at: 2)
+        segmentedControl.insertSegment(withTitle: "Seg 4", image: #imageLiteral(resourceName: "segment-4"), at: 3)
+        segmentedControl.insertSegment(withTitle: "Segment 5", image: #imageLiteral(resourceName: "segment-5"), at: 4)
+        segmentedControl.insertSegment(withTitle: "Segment 6", image: #imageLiteral(resourceName: "segment-6"), at: 5)
+        
+        segmentedControl.selectedSegmentIndex = 0
+        //segmentedControl.selectedBackgroundColor = .clear
     }
     
     private func setupViewHierarchy() {
@@ -110,10 +110,10 @@ class TableViewController: UITableViewController {
                 segmentedControl.style = .imageOnly
                 height = 52
             case 2:
-                segmentedControl.style = .imageOnTop
+                segmentedControl.style = .imageOverText
                 height = 60
             case 3:
-                segmentedControl.style = .imageOnLeft
+                segmentedControl.style = .imageBeforeText
             default: break
                 
             }
@@ -152,11 +152,19 @@ class TableViewController: UITableViewController {
     }
     
     @IBAction func toggleFixedWidth(_ sender: UISwitch) {
-        segmentedControl.fixedWidth = sender.isOn
+        if (sender.isOn) {
+            segmentedControl.segmentWidthStyle = .fixed(maxVisibleItems: 3)
+        } else {
+            segmentedControl.segmentWidthStyle = .dynamic
+        }
     }
     
     @IBAction func toggleShowUnderline(_ sender: UISwitch) {
-        segmentedControl.underlineSelected = sender.isOn
+        if sender.isOn {
+            segmentedControl.indicatorColor = .blue
+        } else {
+            segmentedControl.indicatorColor = .clear
+        }
     }
     
     @IBAction func addSegment(_ sender: Any) {

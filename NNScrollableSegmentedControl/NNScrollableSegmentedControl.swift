@@ -8,85 +8,39 @@
 import UIKit
 
 public class NNScrollableSegmentedControl: UIView {
-    public enum Style {
-        case textOnly
-        case imageOnly
-        case imageOnTop
-        case imageOnLeft
+    
+    // MARK: Public properties
+    public var animationDuration: CFTimeInterval = 0.3
+    public var indicatorPosition: IndicatorPosition = .bottom
+    public var indicatorColor: UIColor = .blue {
+        didSet {
+            if let indicatorLayer = self.indicatorLayer {
+                indicatorLayer.removeFromSuperlayer()
+                if indicatorColor != .clear {
+                    layer.insertSublayer(indicatorLayer, below: layer)
+                }
+            }
+        }
     }
     
-    private var longestTextWidth:CGFloat = 10
-    private var normalAttributes:[NSAttributedString.Key : Any]?
-    private var highlightedAttributes:[NSAttributedString.Key : Any]?
-    private var selectedAttributes:[NSAttributedString.Key : Any]?
-    private var titleAttributes:[UInt: [NSAttributedString.Key : Any]] = [UInt: [NSAttributedString.Key : Any]]()
-    
-    lazy private var backgroundEffectView: UIVisualEffectView = {
-        let blur = UIBlurEffect(style: .light)
-        let visualEffectView = UIVisualEffectView(effect: blur)
-        visualEffectView.translatesAutoresizingMaskIntoConstraints = false
-        visualEffectView.contentView.backgroundColor = UIColor(white: 0.97, alpha: 0.5)
-        return visualEffectView
-    }()
-    
-    lazy private var backgroundColorView: UIView = {
-        let view = UIView()
-        view.alpha = 0.85
-        view.backgroundColor = .clear
-        view.translatesAutoresizingMaskIntoConstraints = false
-        return view
-    }()
-    
-    lazy var collectionView: UICollectionView = {
-        
-        let flowLayout = UICollectionViewFlowLayout()
-        flowLayout.minimumInteritemSpacing = 0
-        flowLayout.minimumLineSpacing = 0
-        flowLayout.scrollDirection = .horizontal
-        
-        let collectionView = UICollectionView(frame: .zero, collectionViewLayout: flowLayout)
-        collectionView.translatesAutoresizingMaskIntoConstraints = false
-        collectionView.backgroundColor = .clear
-        collectionView.keyboardDismissMode = .onDrag
-        collectionView.showsHorizontalScrollIndicator = false
-        
-        return collectionView
-    }()
-    
-    public var valueChanged: ((Int) -> Void)?
+    public var selectedBackgroundColor: UIColor = .cyan {
+        didSet {
+            if let selectedLayer = self.selectedLayer {
+                selectedLayer.removeFromSuperlayer()
+                if selectedBackgroundColor != .clear {
+                    layer.insertSublayer(selectedLayer, below: collectionView.layer)
+                }
+            }
+        }
+    }
+    public var valueDidChange: ((_ segmentedControl: NNScrollableSegmentedControl, _ selectedSegmentIndex: Int) -> Void)?
     
     // Set this property to -1 to turn of the current selection
     public var selectedSegmentIndex: Int = -1 {
         didSet {
-            if let dataSource = self.dataSource {
-                if selectedSegmentIndex < -1 {
-                    selectedSegmentIndex = -1
-                } else if selectedSegmentIndex > dataSource.numberOfSegments - 1 {
-                    selectedSegmentIndex = dataSource.numberOfSegments - 1
-                }
-                
-                if selectedSegmentIndex >= 0 {
-                    var scrollPossition:UICollectionView.ScrollPosition = .bottom
-                    let indexPath = IndexPath(item: selectedSegmentIndex, section: 0)
-                    if let atribs = collectionView.layoutAttributesForItem(at: indexPath) {
-                        let frame = atribs.frame
-                        if frame.origin.x < collectionView.contentOffset.x {
-                            scrollPossition = .left
-                        } else if frame.origin.x + frame.size.width > (collectionView.frame.size.width + collectionView.contentOffset.x) {
-                            scrollPossition = .right
-                        }
-                    }
-                    
-                    collectionView.selectItem(at: indexPath, animated: true, scrollPosition: scrollPossition)
-                } else {
-                    if let indexPath = collectionView.indexPathsForSelectedItems?.first {
-                        collectionView.deselectItem(at: indexPath, animated: true)
-                    }
-                }
-                
-                if oldValue != selectedSegmentIndex {
-                    valueChanged?(selectedSegmentIndex)
-                }
+            if oldValue != selectedSegmentIndex {
+                reloadSegments()
+                valueDidChange?(self,selectedSegmentIndex)
             }
         }
     }
@@ -94,29 +48,20 @@ public class NNScrollableSegmentedControl: UIView {
     public var style: Style = .textOnly {
         didSet {
             if oldValue != style {
-                let indexPath = collectionView.indexPathsForSelectedItems?.last
-                
-                collectionView.reloadData()
-                
-                if indexPath != nil {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: {
-                        self.collectionView.selectItem(at: indexPath, animated: true, scrollPosition: .left)
-                    })
-                }
+                reloadSegments()
             }
         }
     }
     
-    public var underlineSelected: Bool = true {
+    public var segmentWidthStyle: SegmentWidthOption = .fixed(maxVisibleItems: 4) {
         didSet {
             reloadSegments()
         }
     }
     
-    override public var tintColor: UIColor! {
-        didSet {
-            collectionView.tintColor = tintColor
-            reloadSegments()
+    public var numberOfSegments: Int {
+        get {
+            return dataSource?.viewModels.count ?? 0
         }
     }
     
@@ -132,54 +77,96 @@ public class NNScrollableSegmentedControl: UIView {
         }
     }
     
-    public var fixedWidth: Bool = true {
-        didSet {
-            if oldValue != fixedWidth {
-                reloadSegments()
-            }
-        }
-    }
+    // MARK: Private properties
     
-    lazy var dataSource: SegmentControlDataSource? = {
+    private var longestTextWidth:CGFloat = 10
+    private var normalAttributes:[NSAttributedString.Key : Any]?
+    private var highlightedAttributes:[NSAttributedString.Key : Any]?
+    private var selectedAttributes:[NSAttributedString.Key : Any]?
+    private var titleAttributes:[UInt: [NSAttributedString.Key : Any]] = [UInt: [NSAttributedString.Key : Any]]()
+    
+    private var isPerformingScrollAnimation = false
+    
+    lazy private var indicatorLayer: CAShapeLayer? = {
+        let indicatorLayer = CAShapeLayer()
+        
+        indicatorLayer.fillColor = indicatorColor.cgColor
+        indicatorLayer.strokeColor = indicatorColor.cgColor
+        indicatorLayer.lineWidth = 5
+        layer.insertSublayer(indicatorLayer, below: layer)
+        
+        return indicatorLayer
+    }()
+    
+    lazy private var selectedLayer: CAShapeLayer? = {
+        let selectedLayer = CAShapeLayer()
+        selectedLayer.fillColor = selectedBackgroundColor.cgColor
+        selectedLayer.strokeColor =  selectedBackgroundColor.cgColor
+        selectedLayer.lineWidth = bounds.height
+        layer.insertSublayer(selectedLayer, below: collectionView.layer)
+        return selectedLayer
+    }()
+    
+    
+    lazy private var collectionView: UICollectionView = {
+        
+        let flowLayout = UICollectionViewFlowLayout()
+        flowLayout.sectionInset = UIEdgeInsets.zero
+        flowLayout.minimumInteritemSpacing = 0
+        flowLayout.minimumLineSpacing = 0
+        flowLayout.scrollDirection = .horizontal
+        
+        let collectionView = UICollectionView(frame: .zero, collectionViewLayout: flowLayout)
+        collectionView.translatesAutoresizingMaskIntoConstraints = false
+        collectionView.backgroundColor = .clear
+        collectionView.keyboardDismissMode = .onDrag
+        collectionView.isPagingEnabled = false
+        collectionView.showsHorizontalScrollIndicator = false
+        collectionView.showsVerticalScrollIndicator = false
+        collectionView.bounces = true
+        
+        return collectionView
+    }()
+    
+    lazy private var dataSource: SegmentControlDataSource? = {
         let dataSource = SegmentControlDataSource(collectionView: collectionView, cellClassBlock: { [weak self] (indexPath, object) -> AnyClass? in
             guard let style = self?.style else {
                 return nil
             }
             switch style {
             case .textOnly:
-                return TextOnlySegmentCollectionViewCell.self
+                return SegmentCellWithLabel.self
             case .imageOnly:
-                return ImageOnlySegmentCollectionViewCell.self
-            case .imageOnTop:
-                return ImageOnTopSegmentCollectionViewCell.self
-            case .imageOnLeft:
-                return ImageOnLeftSegmentCollectionViewCell.self
+                return SegmentCellWithImage.self
+            case .imageOverText:
+                return SegmentCellWithImageOverLabel.self
+            case .imageBeforeText:
+                return SegmentCellWithImageBeforeLabel.self
             }
         })
         
-        dataSource.itemSize = ({ [weak self] (_,_,item) in
-            let obj = item as! BaseSegmentCollectionViewCell.ViewModel
-            return self?.segmentSize(obj) ?? .zero
+        dataSource.itemSize = ({ [weak self] (_,indexPath,object) in
+            return self?.segmentSize(object) ?? .zero
         })
         
         dataSource.didSelectItem = ({ [weak self](_, indexPath, _) in
             self!.selectedSegmentIndex = indexPath.item
         })
         
-        dataSource.willDisplayItem = ({ [weak self] (cell) in
+        dataSource.willDisplayItem = ({ [weak self] (cell,object) in
             var label:UILabel?
-            if let _cell = cell as? TextOnlySegmentCollectionViewCell {
+            if let _cell = cell as? SegmentCellWithLabel {
                 label = _cell.titleLabel
-            } else if let _cell = cell as? ImageOnTopSegmentCollectionViewCell {
+            } else if let _cell = cell as? SegmentCellWithImageOverLabel {
                 label = _cell.titleLabel
-            } else if let _cell = cell as? ImageOnLeftSegmentCollectionViewCell {
+            } else if let _cell = cell as? SegmentCellWithImageBeforeLabel {
                 label = _cell.titleLabel
             } else {
                 label = nil
             }
             
             if let titleLabel = label {
-                let data = (cell as! BaseSegmentCollectionViewCell).viewModel!
+                let data = object
                 if cell.isHighlighted && data.highlightedAttributedTitle != nil {
                     titleLabel.attributedText = data.highlightedAttributedTitle!
                 } else if cell.isSelected && data.selectedAttributedTitle != nil {
@@ -192,36 +179,52 @@ public class NNScrollableSegmentedControl: UIView {
             }
         })
         
-        dataSource.cellDecorator = ({ [weak self] (cell) in
+        dataSource.cellDecorator = ({ [weak self] (cell,_) in
             
             if let `self` = self {
-                let segmentCell: BaseSegmentCollectionViewCell
+                let segmentCell: BaseSegmentCell
                 switch self.style {
                 case .textOnly:
-                    segmentCell = cell as! TextOnlySegmentCollectionViewCell
+                    segmentCell = cell as! SegmentCellWithLabel
                 case .imageOnly:
-                    segmentCell = cell as! ImageOnlySegmentCollectionViewCell
-                case .imageOnLeft:
-                    segmentCell = cell as! ImageOnLeftSegmentCollectionViewCell
-                case .imageOnTop:
-                    segmentCell = cell as! ImageOnTopSegmentCollectionViewCell
+                    segmentCell = cell as! SegmentCellWithImage
+                case .imageBeforeText:
+                    segmentCell = cell as! SegmentCellWithImageBeforeLabel
+                case .imageOverText:
+                    segmentCell = cell as! SegmentCellWithImageOverLabel
                 }
                 segmentCell.tintColor = self.tintColor
                 segmentCell.contentColor = self.contentColor
                 segmentCell.selectedContentColor = self.selectedContentColor
-                segmentCell.showUnderline = self.underlineSelected
             }
             
         })
         
+        dataSource.didScroll = ({ [weak self] (_) in
+            if let `self` = self, !self.isPerformingScrollAnimation {
+                let item = self.itemInSuperView()
+                if let indicatorLayer = self.indicatorLayer {
+                    self.moveShapeLayer(
+                        indicatorLayer,
+                        startPoint: CGPoint(x: item.startX, y: self.indicatorPointY()),
+                        endPoint: CGPoint(x: item.endX, y: self.indicatorPointY()),
+                        animated: false
+                    )
+                }
+                
+                if let selectedLayer = self.selectedLayer {
+                    self.moveShapeLayer(
+                        selectedLayer,
+                        startPoint: CGPoint(x: item.startX, y: self.bounds.midY),
+                        endPoint: CGPoint(x: item.endX, y: self.bounds.midY),
+                        animated: false
+                    )
+                }
+            }
+        })
+        
         return dataSource
     }()
-    
-    public var numberOfSegments: Int {
-        get {
-            return dataSource?.viewModels.count ?? 0
-        }
-    }
     
     override public init(frame: CGRect) {
         super.init(frame: frame)
@@ -230,7 +233,9 @@ public class NNScrollableSegmentedControl: UIView {
     }
     
     required init?(coder aDecoder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
+        super.init(coder: aDecoder)
+        setupViewHierarchy()
+        setupConstraints()
     }
     
     public init(titles: [String]) {
@@ -239,7 +244,7 @@ public class NNScrollableSegmentedControl: UIView {
         setupViewHierarchy()
         setupConstraints()
         
-        var segments: [BaseSegmentCollectionViewCell.ViewModel] = [];
+        var segments: [BaseSegmentCell.ViewModel] = [];
         for title in titles {
             _ = calculateLongestTextWidth(text: title)
             let segmentData = NNScrollableSegmentedControl.makeSegmentItem(withTitle: title)
@@ -254,7 +259,7 @@ public class NNScrollableSegmentedControl: UIView {
         setupViewHierarchy()
         setupConstraints()
         
-        var items: [BaseSegmentCollectionViewCell.ViewModel] = [];
+        var items: [BaseSegmentCell.ViewModel] = [];
         for item in segments {
             _ = calculateLongestTextWidth(text: item.title)
             let segmentData = NNScrollableSegmentedControl.makeSegmentItem(withTitle: item.title, image: item.image)
@@ -263,47 +268,46 @@ public class NNScrollableSegmentedControl: UIView {
         dataSource?.viewModels = items
     }
     
+    public override func layoutSubviews() {
+        super.layoutSubviews()
+        selectedLayer?.lineWidth = bounds.height
+        reloadSegments()
+    }
+    
     private func setupViewHierarchy() {
-        addSubview(backgroundEffectView)
-        backgroundEffectView.contentView.addSubview(backgroundColorView)
-        backgroundEffectView.contentView.addSubview(collectionView)
+        addSubview(collectionView)
     }
     
     private func setupConstraints() {
-        backgroundEffectView
-            .leadingAnchor(equalTo: self.leadingAnchor)
-            .topAnchor(equalTo: self.topAnchor)
-            .trailingAnchor(equalTo: self.trailingAnchor)
-            .bottomAnchor(equalTo: self.bottomAnchor)
-        
-        backgroundColorView
-            .topAnchor(equalTo: backgroundEffectView.topAnchor)
-            .bottomAnchor(equalTo: backgroundEffectView.bottomAnchor)
-            .trailingAnchor(equalTo: backgroundEffectView.trailingAnchor)
-            .leadingAnchor(equalTo: backgroundEffectView.leadingAnchor)
-        
         collectionView
-            .topAnchor(equalTo: backgroundEffectView.topAnchor)
-            .bottomAnchor(equalTo: backgroundEffectView.bottomAnchor)
-            .trailingAnchor(equalTo: backgroundEffectView.trailingAnchor)
-            .leadingAnchor(equalTo: backgroundEffectView.leadingAnchor)
-        
+            .topAnchor(equalTo: self.topAnchor)
+            .bottomAnchor(equalTo: self.bottomAnchor)
+            .trailingAnchor(equalTo: self.trailingAnchor)
+            .leadingAnchor(equalTo: self.leadingAnchor)
     }
     
-    private func segmentSize(_ segmentItem: BaseSegmentCollectionViewCell.ViewModel) -> CGSize {
+    private func segmentSize(_ segmentItem: BaseSegmentCell.ViewModel) -> CGSize {
         var itemSize: CGSize = .zero
         var imageWidth: CGFloat = 0.0
-        if style == .imageOnLeft {
-            imageWidth = BaseSegmentCollectionViewCell.imageSize + BaseSegmentCollectionViewCell.imageToTextMargin * 2
+        let cntSegmentItem = dataSource?.viewModels.count ?? 0
+        if style == .imageBeforeText {
+            imageWidth = BaseSegmentCell.imageSize + BaseSegmentCell.imageToTextMargin * 2
         }
-        if fixedWidth {
-            itemSize = CGSize(width: longestTextWidth + imageWidth, height: frame.size.height)
-        } else {
+        
+        switch segmentWidthStyle {
+        case .dynamic:
             if segmentItem.image == nil {
                 imageWidth = 0
             }
             itemSize = CGSize(width: calculateTextWidth(text: segmentItem.title!) + imageWidth, height: frame.size.height)
+
+        case .fixed(let maxVisibleItems):
+            let collectionViewWidth = collectionView.frame.width
+            let maxItems = maxVisibleItems > cntSegmentItem ? cntSegmentItem : maxVisibleItems
+            let width = maxItems == 0 ? 0 : floor(collectionViewWidth / CGFloat(maxItems))
+            itemSize = CGSize(width: width, height: frame.size.height)
         }
+        
         return itemSize
     }
     
@@ -316,7 +320,7 @@ public class NNScrollableSegmentedControl: UIView {
         } else if selectedAttributes != nil {
             fontAttributes = selectedAttributes!
         } else {
-            fontAttributes =  [NSAttributedString.Key.font: BaseSegmentCollectionViewCell.defaultFont]
+            fontAttributes =  [NSAttributedString.Key.font: BaseSegmentCell.defaultFont]
         }
         
         return (text as NSString).size(withAttributes: fontAttributes)
@@ -324,7 +328,7 @@ public class NNScrollableSegmentedControl: UIView {
     
     private func calculateTextWidth(text: String) -> CGFloat {
         let size = calculateSizeText(text: text)
-        return 2.0 + size.width + BaseSegmentCollectionViewCell.textPadding * 2
+        return 2.0 + size.width + BaseSegmentCell.textPadding * 2
     }
     
     private func calculateLongestTextWidth(text:String) {
@@ -335,14 +339,14 @@ public class NNScrollableSegmentedControl: UIView {
     }
     
     private func reloadSegments() {
+        collectionView.collectionViewLayout.invalidateLayout()
         collectionView.reloadData()
-        if selectedSegmentIndex >= 0 {
-            let indexPath = IndexPath(item: selectedSegmentIndex, section: 0)
-            collectionView.selectItem(at: indexPath, animated: true, scrollPosition: .bottom)
-        }
+        guard selectedSegmentIndex != -1 else { return }
+        scrollToItemAtContext()
+        moveShapeLayerAtContext()
     }
     
-    private func configureAttributedTitlesForSegment(_ segmentItem: BaseSegmentCollectionViewCell.ViewModel) {
+    private func configureAttributedTitlesForSegment(_ segmentItem: BaseSegmentCell.ViewModel) {
         segmentItem.normalAttributedTitle = nil
         segmentItem.highlightedAttributedTitle = nil
         segmentItem.selectedAttributedTitle = nil
@@ -378,12 +382,203 @@ public class NNScrollableSegmentedControl: UIView {
         }
     }
     
+    private func itemInSuperView(ratio: CGFloat = 1) -> ItemInSuperview {
+        var collectionViewWidth: CGFloat = 0
+        var cellWidth: CGFloat = 0
+        var cellRect = CGRect.zero
+        var shapeLayerWidth: CGFloat = 0
+        
+        if selectedSegmentIndex != -1 {
+            collectionViewWidth = collectionView.frame.width
+            cellWidth = segmentWidth(for: IndexPath(row: selectedSegmentIndex, section: 0))
+            var x: CGFloat = 0
+            
+            switch segmentWidthStyle {
+            case .fixed:
+                x = floor(CGFloat(selectedSegmentIndex) * cellWidth - collectionView.contentOffset.x)
+                
+            case .dynamic:
+                for i in 0..<selectedSegmentIndex {
+                    x += segmentWidth(for: IndexPath(item: i, section: 0))
+                }
+
+                x -= collectionView.contentOffset.x
+            }
+            
+            cellRect = CGRect(
+                x: x,
+                y: 0,
+                width: cellWidth,
+                height: collectionView.frame.height
+            )
+            
+            shapeLayerWidth = floor(cellWidth * ratio)
+        }
+        
+        return ItemInSuperview(
+            collectionViewWidth: collectionViewWidth,
+            cellFrameInSuperview: cellRect,
+            shapeLayerWidth: shapeLayerWidth,
+            startX: floor(cellRect.midX - (shapeLayerWidth / 2)),
+            endX: floor(cellRect.midX + (shapeLayerWidth / 2))
+        )
+    }
+    
+    private func segmentWidth(for indexPath: IndexPath) -> CGFloat {
+        var width: CGFloat = 0
+        if let dataSource = self.dataSource, !dataSource.viewModels.isEmpty {
+            let item = dataSource.viewModels[indexPath.row]
+            width = segmentSize(item).width
+        }
+        
+        return width
+    }
+    
+    private func scrollToItemAtContext() {
+        guard selectedSegmentIndex != -1 else {
+            return
+        }
+        
+        let item = itemInSuperView()
+        collectionView.scrollRectToVisible(centerRect(for: item), animated: true)
+    }
+    
+    private func moveShapeLayerAtContext() {
+        if let dataSource = self.dataSource, !dataSource.viewModels.isEmpty {
+            let itemWidth = dataSource.viewModels.enumerated().map { (index, _) -> CGFloat in
+                return segmentWidth(for: IndexPath(item: index, section: 0))
+            }
+            
+            let item = itemInSuperView()
+
+            if let indicatorLayer = self.indicatorLayer {
+                let points = Points(
+                    item: item,
+                    atIndex: selectedSegmentIndex,
+                    allItemsCellWidth: itemWidth,
+                    pointY: indicatorPointY()
+                )
+                let insetX = ((points.endPoint.x - points.startPoint.x) - (item.endX - item.startX))/2
+                moveShapeLayer(
+                    indicatorLayer,
+                    startPoint: CGPoint(x: points.startPoint.x + insetX, y: points.startPoint.y),
+                    endPoint: CGPoint(x: points.endPoint.x - insetX, y: points.endPoint.y),
+                    animated: true
+                )
+            }
+            
+            if let selectedLayer = selectedLayer {
+                let points = Points(
+                    item: item,
+                    atIndex: selectedSegmentIndex,
+                    allItemsCellWidth: itemWidth,
+                    pointY: bounds.midY
+                )
+                
+                moveShapeLayer(
+                    selectedLayer,
+                    startPoint: points.startPoint,
+                    endPoint: points.endPoint,
+                    animated: true
+                )
+            }
+        }
+    }
+    
+    private func indicatorPointY() -> CGFloat {
+        var indicatorPointY: CGFloat = 0
+        let indicatorOptionHeight: CGFloat = 5
+        
+        switch indicatorPosition {
+        case .top:
+            indicatorPointY = (indicatorOptionHeight / 2)
+        case .bottom:
+            indicatorPointY = frame.height - (indicatorOptionHeight / 2)
+        }
+        
+//        guard let horizontalSeparatorOptions = segmentioOptions.horizontalSeparatorOptions else {
+//            return indicatorPointY
+//        }
+//
+//        let separatorHeight = horizontalSeparatorOptions.height
+//        let isIndicatorTop = indicatorOptions.type == .top
+//
+//        switch horizontalSeparatorOptions.type {
+//        case .none:
+//            break
+//        case .top:
+//            indicatorPointY = isIndicatorTop ? indicatorPointY + separatorHeight : indicatorPointY
+//        case .bottom:
+//            indicatorPointY = isIndicatorTop ? indicatorPointY : indicatorPointY - separatorHeight
+//        case .topAndBottom:
+//            indicatorPointY = isIndicatorTop ? indicatorPointY + separatorHeight : indicatorPointY - separatorHeight
+//        }
+        
+        return indicatorPointY
+    }
+    
+    private func centerRect(for item: ItemInSuperview) -> CGRect {
+        
+        let item = itemInSuperView()
+        var centerRect = item.cellFrameInSuperview
+
+        if (item.startX + collectionView.contentOffset.x) - (item.collectionViewWidth - centerRect.width) / 2 < 0 {
+            centerRect.origin.x = 0
+            let widthToAdd = item.collectionViewWidth - centerRect.width
+            centerRect.size.width += widthToAdd
+        } else if collectionView.contentSize.width - item.endX < (item.collectionViewWidth - centerRect.width) / 2 {
+            centerRect.origin.x = collectionView.contentSize.width - item.collectionViewWidth
+            centerRect.size.width = item.collectionViewWidth
+        } else {
+            centerRect.origin.x = item.startX - (item.collectionViewWidth - centerRect.width) / 2
+                + collectionView.contentOffset.x
+            centerRect.size.width = item.collectionViewWidth
+        }
+
+        return centerRect
+    }
+    
+    private func moveShapeLayer(_ shapeLayer: CAShapeLayer,
+                                startPoint: CGPoint,
+                                endPoint: CGPoint,
+                                animated: Bool = false) {
+        
+        var endPointWithVerticalSeparator = endPoint
+        let isLastItem = selectedSegmentIndex + 1 == dataSource?.numberOfSegments
+        endPointWithVerticalSeparator.x = endPoint.x - (isLastItem ? 0 : 1)
+        
+        let shapeLayerPath = UIBezierPath()
+        shapeLayerPath.move(to: startPoint)
+        shapeLayerPath.addLine(to: endPointWithVerticalSeparator)
+        
+        if animated == true {
+            isPerformingScrollAnimation = true
+            isUserInteractionEnabled = false
+            
+            CATransaction.begin()
+            let animation = CABasicAnimation(keyPath: "path")
+            animation.fromValue = shapeLayer.path
+            animation.toValue = shapeLayerPath.cgPath
+            animation.duration = animationDuration
+            CATransaction.setCompletionBlock() {
+                self.isPerformingScrollAnimation = false
+                self.isUserInteractionEnabled = true
+            }
+            shapeLayer.add(animation, forKey: "path")
+            CATransaction.commit()
+        }
+        
+        shapeLayer.path = shapeLayerPath.cgPath
+    }
+    
     // MARK: Manage segments
     public func insertSegment(withTitle title: String, at index: Int) {
         if let dataSource = self.dataSource {
             _ = calculateLongestTextWidth(text: title)
             let segment = NNScrollableSegmentedControl.makeSegmentItem(withTitle: title)
             dataSource.viewModels.insert(segment, at: index)
+            scrollToItemAtContext()
+            moveShapeLayerAtContext()
         }
     }
     
@@ -394,6 +589,8 @@ public class NNScrollableSegmentedControl: UIView {
             }
             let segment = NNScrollableSegmentedControl.makeSegmentItem(withTitle: title, image: image)
             dataSource.viewModels.insert(segment, at: index)
+            scrollToItemAtContext()
+            moveShapeLayerAtContext()
         }
     }
     
@@ -402,6 +599,8 @@ public class NNScrollableSegmentedControl: UIView {
             dataSource.viewModels.remove(at: index)
             if(selectedSegmentIndex == index) {
                 selectedSegmentIndex = selectedSegmentIndex - 1
+                scrollToItemAtContext()
+                moveShapeLayerAtContext()
             } else if(selectedSegmentIndex > (dataSource.numberOfSegments)) {
                 selectedSegmentIndex = -1
             }
@@ -432,16 +631,78 @@ public class NNScrollableSegmentedControl: UIView {
 
 extension NNScrollableSegmentedControl {
     
-    static func makeSegmentItem(withTitle title: String?) -> BaseSegmentCollectionViewCell.ViewModel {
-        let segment = BaseSegmentCollectionViewCell.ViewModel()
+    internal struct Points {
+        var startPoint: CGPoint
+        var endPoint: CGPoint
+        
+        init(item: ItemInSuperview, atIndex index: Int, allItemsCellWidth: [CGFloat], pointY: CGFloat) {
+            let cellWidth = item.cellFrameInSuperview.width
+            var startX = item.startX
+            var endX = item.endX
+            var spaceBefore: CGFloat = 0
+            var spaceAfter: CGFloat = 0
+            var i = 0
+            allItemsCellWidth.forEach { width in
+                if i < index { spaceBefore += width }
+                if i > index { spaceAfter += width }
+                i += 1
+            }
+            // Cell will try to position itself in the middle, unless it can't because
+            // the collection view has reached the beginning or end
+            startX = (item.collectionViewWidth / 2) - (cellWidth / 2 )
+            if spaceBefore < (item.collectionViewWidth - cellWidth) / 2 {
+                startX = spaceBefore
+            }
+            if spaceAfter < (item.collectionViewWidth - cellWidth) / 2 {
+                startX = item.collectionViewWidth - spaceAfter - cellWidth
+            }
+            endX = startX + cellWidth
+            
+            startPoint = CGPoint(x: startX, y: pointY)
+            endPoint = CGPoint(x: endX, y: pointY)
+        }
+    }
+    
+    internal struct ItemInSuperview {
+        var collectionViewWidth: CGFloat
+        var cellFrameInSuperview: CGRect
+        var shapeLayerWidth: CGFloat
+        var startX: CGFloat
+        var endX: CGFloat
+    }
+    
+    static func makeSegmentItem(withTitle title: String?) -> BaseSegmentCell.ViewModel {
+        let segment = BaseSegmentCell.ViewModel()
         segment.title = title
         return segment
     }
     
-    static func makeSegmentItem(withTitle title: String?, image: UIImage?) -> BaseSegmentCollectionViewCell.ViewModel {
-        let segment = BaseSegmentCollectionViewCell.ViewModel()
+    static func makeSegmentItem(withTitle title: String?, image: UIImage?) -> BaseSegmentCell.ViewModel {
+        let segment = BaseSegmentCell.ViewModel()
         segment.title = title
         segment.image = image?.withRenderingMode(.alwaysTemplate)
         return segment
+    }
+    
+}
+
+// MARK: Public enums
+
+extension NNScrollableSegmentedControl {
+    public enum SegmentWidthOption {
+        case dynamic
+        case fixed(maxVisibleItems: Int)
+    }
+    
+    public enum Style {
+        case textOnly
+        case imageOnly
+        case imageOverText
+        case imageBeforeText
+    }
+    
+    public enum IndicatorPosition {
+        case top
+        case bottom
     }
 }

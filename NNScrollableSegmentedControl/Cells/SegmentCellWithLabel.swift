@@ -1,5 +1,5 @@
 //
-//  TextOnlySegmentCollectionViewCell.swift
+//  SegmentCellWithLabel.swift
 //  NNScrollableSegmentedControl
 //
 //  Created by Nang Nguyen on 5/13/19.
@@ -7,21 +7,21 @@
 
 import UIKit
 
-class TextOnlySegmentCollectionViewCell: BaseSegmentCollectionViewCell {
+class SegmentCellWithLabel: BaseSegmentCell {
     
     lazy var titleLabel: UILabel = {
         
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
         label.textAlignment = .center
-        label.textColor = BaseSegmentCollectionViewCell.defaultTextColor
-        label.font = BaseSegmentCollectionViewCell.defaultFont
+        label.textColor = BaseSegmentCell.defaultTextColor
+        label.font = BaseSegmentCell.defaultFont
         return label
     }()
     
     override var contentColor:UIColor? {
         didSet {
-            titleLabel.textColor = (contentColor == nil) ? BaseSegmentCollectionViewCell.defaultTextColor : contentColor!
+            titleLabel.textColor = (contentColor == nil) ? BaseSegmentCell.defaultTextColor : contentColor!
         }
     }
     
@@ -38,6 +38,7 @@ class TextOnlySegmentCollectionViewCell: BaseSegmentCollectionViewCell {
             } else {
                 titleLabel.isHighlighted = isHighlighted
             }
+            backgroundColor = isHighlighted ? .yellow : .clear
         }
     }
     
@@ -49,11 +50,12 @@ class TextOnlySegmentCollectionViewCell: BaseSegmentCollectionViewCell {
                 } else {
                     titleLabel.textColor = (selectedContentColor == nil) ? UIColor.black : selectedContentColor!
                 }
+                
             } else {
                 if let title = super.normalAttributedTitle {
                     titleLabel.attributedText = title
                 } else {
-                    titleLabel.textColor = (contentColor == nil) ? BaseSegmentCollectionViewCell.defaultTextColor : contentColor!
+                    titleLabel.textColor = (contentColor == nil) ? BaseSegmentCell.defaultTextColor : contentColor!
                 }
             }
         }
@@ -71,31 +73,30 @@ class TextOnlySegmentCollectionViewCell: BaseSegmentCollectionViewCell {
     
     private func setupViewHierarchy() {
         contentView.addSubview(titleLabel)
-        contentView.addSubview(underlineView)
+        contentView.addSubview(verticalSeparatorView)
     }
     
     private func setupConstraints() {
         titleLabel
             .centerXAnchor(equalTo: contentView.centerXAnchor)
             .centerYAnchor(equalTo: contentView.centerYAnchor)
-            .leadingAnchor(equalTo: contentView.leadingAnchor, constant: BaseSegmentCollectionViewCell.textPadding)
-            .trailingAnchor(equalTo: contentView.trailingAnchor, constant: -BaseSegmentCollectionViewCell.textPadding)
+            .leadingAnchor(equalTo: contentView.leadingAnchor, constant: BaseSegmentCell.textPadding)
+            .trailingAnchor(equalTo: contentView.trailingAnchor, constant: -BaseSegmentCell.textPadding)
         
-        underlineView
-            .heightAnchor(equalTo: BaseSegmentCollectionViewCell.underlineHeight)
-            .leadingAnchor(equalTo: contentView.leadingAnchor)
-            .trailingAnchor(equalTo: contentView.trailingAnchor)
+        verticalSeparatorView
+            .topAnchor(equalTo: contentView.topAnchor)
             .bottomAnchor(equalTo: contentView.bottomAnchor)
-        
+            .trailingAnchor(equalTo: contentView.trailingAnchor)
+            .widthAnchor(equalTo: 1)
     }
     
-    override func setup(_ viewModel: ViewModel) {
-        super.setup(viewModel)
+    override func setup(_ viewModel: ViewModel, isLastCell: Bool) {
+        super.setup(viewModel, isLastCell: isLastCell)
         
         titleLabel.text = viewModel.title
     }
     
-    override func configCell(_ viewModel: ViewModel) {
-        setup(viewModel)
+    override func configCell(_ viewModel: ViewModel, isLastCell: Bool) {
+        setup(viewModel, isLastCell: isLastCell)
     }
 }

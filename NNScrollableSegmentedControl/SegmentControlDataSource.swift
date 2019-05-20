@@ -11,16 +11,17 @@ typealias CellClassBlock = (_ indexPath: IndexPath, _ object: Any?) -> AnyClass?
 class SegmentControlDataSource: NSObject, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
     private weak var collectionView: UICollectionView?
     private var cellClassBlock: CellClassBlock?
-    var viewModels: [BaseSegmentCollectionViewCell.ViewModel] = [] {
+    var viewModels: [BaseSegmentCell.ViewModel] = [] {
         didSet {
             collectionView?.reloadData()
         }
     }
     
-    var didSelectItem: (_ collectionView: UICollectionView, _ indexPath: IndexPath, _ object: Any) -> Void = {_,_,_ in}
-    var itemSize: (_ collectionView: UICollectionView, _ indexPath: IndexPath, _ object: Any) -> CGSize = {_,_,_ in CGSize(width: 0,height: 0)}
-    var willDisplayItem: ((_ cell: UICollectionViewCell) -> Void)?
-    var cellDecorator: ((_ cell: UICollectionViewCell) -> Void)?
+    var didSelectItem: (_ collectionView: UICollectionView, _ indexPath: IndexPath, _ object: BaseSegmentCell.ViewModel) -> Void = {_,_,_ in}
+    var itemSize: (_ collectionView: UICollectionView, _ indexPath: IndexPath, _ object: BaseSegmentCell.ViewModel) -> CGSize = {_,_,_ in CGSize(width: 0,height: 0)}
+    var willDisplayItem: ((_ cell: UICollectionViewCell, _ object: BaseSegmentCell.ViewModel) -> Void)?
+    var cellDecorator: ((_ cell: UICollectionViewCell, _ object: BaseSegmentCell.ViewModel) -> Void)?
+    var didScroll:((_ scrollView: UIScrollView) -> Void)?
     
     var numberOfSegments: Int {
         get {
@@ -28,7 +29,7 @@ class SegmentControlDataSource: NSObject, UICollectionViewDataSource, UICollecti
         }
     }
     
-    private subscript(indexPath: IndexPath) -> Any? {
+    private subscript(indexPath: IndexPath) -> BaseSegmentCell.ViewModel? {
         return viewModels[indexPath.row]
     }
     
@@ -43,17 +44,13 @@ class SegmentControlDataSource: NSObject, UICollectionViewDataSource, UICollecti
     }
     
     private func registerCells(in collectionView: UICollectionView) {
-        collectionView.register(.class(TextOnlySegmentCollectionViewCell.self))
-        collectionView.register(.class(ImageOnlySegmentCollectionViewCell.self))
-        collectionView.register(.class(ImageOnTopSegmentCollectionViewCell.self))
-        collectionView.register(.class(ImageOnLeftSegmentCollectionViewCell.self))
+        collectionView.register(.class(SegmentCellWithLabel.self))
+        collectionView.register(.class(SegmentCellWithImage.self))
+        collectionView.register(.class(SegmentCellWithImageOverLabel.self))
+        collectionView.register(.class(SegmentCellWithImageBeforeLabel.self))
     }
     
     // MARK: UICollectionViewDataSource conforms
-    
-    func numberOfSections(in collectionView: UICollectionView) -> Int {
-        return 1
-    }
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         return viewModels.count
@@ -61,12 +58,11 @@ class SegmentControlDataSource: NSObject, UICollectionViewDataSource, UICollecti
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         
-        let object = self.viewModels[indexPath.row]
-        let cellClass = self.cellClassBlock?(indexPath, object) as! BaseSegmentCollectionViewCell.Type
+        let object = self[indexPath]!
+        let cellClass = self.cellClassBlock?(indexPath, object) as! BaseSegmentCell.Type
         let cell = collectionView.dequeueReusableCell(cellClass.self, for: indexPath)!
-        cell.viewModel = object
-        
-        cellDecorator?(cell)
+        cell.configCell(object, isLastCell: indexPath.row == viewModels.count - 1)
+        cellDecorator?(cell, object)
         return cell
     }
     
@@ -79,11 +75,15 @@ class SegmentControlDataSource: NSObject, UICollectionViewDataSource, UICollecti
         return itemSize
     }
     
-    public func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
-        self.willDisplayItem?(cell)
+    func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+        self.willDisplayItem?(cell,self[indexPath]!)
     }
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         self.didSelectItem(collectionView,indexPath, self[indexPath]!)
+    }
+    
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        self.didScroll?(scrollView)
     }
 }

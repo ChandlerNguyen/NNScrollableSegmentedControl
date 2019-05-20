@@ -12,7 +12,7 @@
         <!--Table View Controller-->
         <scene sceneID="8UT-3y-Ac4">
             <objects>
-                <tableViewController id="pQT-PV-TRg" customClass="TableViewController" customModule="ScrollableSegmentedControlDemo" customModuleProvider="target" sceneMemberID="viewController">
+                <tableViewController id="pQT-PV-TRg" customClass="TableViewController" customModule="NNScrollableSegmentedControl_Example" customModuleProvider="target" sceneMemberID="viewController">
                     <tableView key="view" clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" dataMode="static" style="plain" separatorStyle="default" rowHeight="46" sectionHeaderHeight="28" sectionFooterHeight="28" id="g7S-mw-doM">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
                         <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMaxX="YES" flexibleMinY="YES" heightSizable="YES" flexibleMaxY="YES"/>
@@ -172,7 +172,7 @@
                                             <rect key="frame" x="0.0" y="0.0" width="375" height="45.5"/>
                                             <autoresizingMask key="autoresizingMask"/>
                                             <subviews>
-                                                <label opaque="NO" multipleTouchEnabled="YES" contentMode="left" text="Show selected underline" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="IoS-Wu-VME">
+                                                <label opaque="NO" multipleTouchEnabled="YES" contentMode="left" text="Show selected indicator" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="IoS-Wu-VME">
                                                     <rect key="frame" x="16" y="0.0" width="290" height="45.5"/>
                                                     <fontDescription key="fontDescription" type="system" pointSize="17"/>
                                                     <nil key="textColor"/>

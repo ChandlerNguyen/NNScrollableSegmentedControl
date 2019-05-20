@@ -8,12 +8,12 @@
 
 import Foundation
 
-class BaseImageSegmentCollectionViewCell: BaseSegmentCollectionViewCell {
+class BaseImageSegmentCell: BaseSegmentCell {
     
     lazy var titleLabel: UILabel = {
         let titleLabel = UILabel()
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        titleLabel.font = BaseSegmentCollectionViewCell.defaultFont
+        titleLabel.font = BaseSegmentCell.defaultFont
         return titleLabel
     }()
     
@@ -29,14 +29,14 @@ class BaseImageSegmentCollectionViewCell: BaseSegmentCollectionViewCell {
         let stackView = UIStackView()
         stackView.translatesAutoresizingMaskIntoConstraints = false
         stackView.distribution = .fill
-        stackView.spacing = BaseSegmentCollectionViewCell.textPadding
+        stackView.spacing = BaseSegmentCell.textPadding
         return stackView
     }()
     
     override var contentColor:UIColor? {
         didSet {
-            titleLabel.textColor = (contentColor == nil) ? BaseSegmentCollectionViewCell.defaultTextColor : contentColor!
-            imageView.tintColor = (contentColor == nil) ? BaseSegmentCollectionViewCell.defaultTextColor : contentColor!
+            titleLabel.textColor = (contentColor == nil) ? BaseSegmentCell.defaultTextColor : contentColor!
+            imageView.tintColor = (contentColor == nil) ? BaseSegmentCell.defaultTextColor : contentColor!
         }
     }
     
@@ -55,9 +55,9 @@ class BaseImageSegmentCollectionViewCell: BaseSegmentCollectionViewCell {
             }
             
             if isHighlighted {
-                imageView.tintColor = (selectedContentColor == nil) ? BaseSegmentCollectionViewCell.defaultTextColor : selectedContentColor!
+                imageView.tintColor = (selectedContentColor == nil) ? BaseSegmentCell.defaultTextColor : selectedContentColor!
             } else {
-                imageView.tintColor = (contentColor == nil) ? BaseSegmentCollectionViewCell.defaultTextColor : contentColor!
+                imageView.tintColor = (contentColor == nil) ? BaseSegmentCell.defaultTextColor : contentColor!
             }
         }
     }
@@ -70,14 +70,14 @@ class BaseImageSegmentCollectionViewCell: BaseSegmentCollectionViewCell {
                 } else {
                     titleLabel.textColor = (selectedContentColor == nil) ? UIColor.black : selectedContentColor!
                 }
-                imageView.tintColor = (selectedContentColor == nil) ? BaseSegmentCollectionViewCell.defaultTextColor : selectedContentColor!
+                imageView.tintColor = (selectedContentColor == nil) ? BaseSegmentCell.defaultTextColor : selectedContentColor!
             } else {
                 if let title = super.normalAttributedTitle {
                     titleLabel.attributedText = title
                 } else {
-                    titleLabel.textColor = (contentColor == nil) ? BaseSegmentCollectionViewCell.defaultTextColor : contentColor!
+                    titleLabel.textColor = (contentColor == nil) ? BaseSegmentCell.defaultTextColor : contentColor!
                 }
-                imageView.tintColor = (contentColor == nil) ? BaseSegmentCollectionViewCell.defaultTextColor : contentColor!
+                imageView.tintColor = (contentColor == nil) ? BaseSegmentCell.defaultTextColor : contentColor!
             }
         }
     }
@@ -98,34 +98,34 @@ class BaseImageSegmentCollectionViewCell: BaseSegmentCollectionViewCell {
         stackView.addArrangedSubview(titleLabel)
         
         contentView.addSubview(stackView)
-        contentView.addSubview(underlineView)
+        contentView.addSubview(verticalSeparatorView)
     }
     
     func setupConstraints() {
         stackView
             .centerXAnchor(equalTo: contentView.centerXAnchor)
             .centerYAnchor(equalTo: contentView.centerYAnchor)
-            .leadingAnchor(greaterThanOrEqualTo: contentView.leadingAnchor, constant: BaseSegmentCollectionViewCell.textPadding)
+            .leadingAnchor(greaterThanOrEqualTo: contentView.leadingAnchor, constant: BaseSegmentCell.textPadding)
         
         contentView
-            .trailingAnchor(greaterThanOrEqualTo: stackView.trailingAnchor, constant: BaseSegmentCollectionViewCell.textPadding)
+            .trailingAnchor(greaterThanOrEqualTo: stackView.trailingAnchor, constant: BaseSegmentCell.textPadding)
         
-        underlineView
-            .heightAnchor(equalTo: BaseSegmentCollectionViewCell.underlineHeight)
-            .leadingAnchor(equalTo: contentView.leadingAnchor)
-            .trailingAnchor(equalTo: contentView.trailingAnchor)
+        verticalSeparatorView
+            .topAnchor(equalTo: contentView.topAnchor)
             .bottomAnchor(equalTo: contentView.bottomAnchor)
+            .trailingAnchor(equalTo: contentView.trailingAnchor)
+            .widthAnchor(equalTo: 1)
         
     }
     
-    override func setup(_ viewModel: ViewModel) {
-        super.setup(viewModel)
+    override func setup(_ viewModel: ViewModel, isLastCell: Bool) {
+        super.setup(viewModel, isLastCell: isLastCell)
         
         titleLabel.text = viewModel.title
         imageView.image = viewModel.image
     }
     
-    override func configCell(_ viewModel: ViewModel) {
-        setup(viewModel)
+    override func configCell(_ viewModel: ViewModel, isLastCell: Bool) {
+        setup(viewModel, isLastCell: isLastCell)
     }
 }

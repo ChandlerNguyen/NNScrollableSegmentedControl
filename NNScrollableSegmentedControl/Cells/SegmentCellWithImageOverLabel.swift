@@ -1,5 +1,5 @@
 //
-//  ImageOnTopSegmentCollectionViewCell.swift
+//  SegmentCellWithImageOverLabel.swift
 //  DevKit
 //
 //  Created by Nang Nguyen on 5/7/19.
@@ -8,7 +8,7 @@
 
 import Foundation
 
-class ImageOnTopSegmentCollectionViewCell: BaseImageSegmentCollectionViewCell {
+class SegmentCellWithImageOverLabel: BaseImageSegmentCell {
     
     override func setupConstraints() {
         super.setupConstraints()
